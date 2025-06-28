@@ -3,6 +3,7 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 
 dotenv.config();
+const stripe = require('stripe')(process.env.PAYMENT_GATEWAY_KEY);
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -85,9 +86,10 @@ async function run() {
 
 
         app.post('/create-payment-intent', async(req, res)=>{
+            const amountInCents = req.body.amountInCents;
             try{
                 const paymentIntent = await stripe.paymentIntents.create({
-                    amount: ,
+                    amount: amountInCents,
                     currency: 'usd',
                     payment_method_types: ['card'],
                 });
@@ -97,7 +99,12 @@ async function run() {
             catch(error){
                 res.status(500).json({ error: error.message });
             }
-        })
+        });
+
+
+
+
+
 
         app.delete('/parcels/:id', async(req, res)=>{
             try{
