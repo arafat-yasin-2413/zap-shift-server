@@ -52,6 +52,24 @@ async function run() {
         });
 
 
+        app.get('/parcels/:id', async(req, res)=>{
+            try{
+                const id = req.params.id;
+                const parcel = await parcelCollection.findOne({_id: new ObjectId(id)});
+
+                if(!parcel) {
+                    return res.status(404).send({ message: 'Parcel not found' });
+                }
+
+                res.send(parcel);
+            }
+            catch (error) {
+                console.error('error fetching parcel : ', error);
+                res.status(500).send({ message: 'Failed to fetch parcle'});
+            }
+        });
+
+
         app.post('/parcels', async(req, res)=>{
             try{
                 const newParcel = req.body;
@@ -64,6 +82,22 @@ async function run() {
                 res.status(500).send({message: 'Failed to create parcel'});
             }
         });
+
+
+        app.post('/create-payment-intent', async(req, res)=>{
+            try{
+                const paymentIntent = await stripe.paymentIntents.create({
+                    amount: ,
+                    currency: 'usd',
+                    payment_method_types: ['card'],
+                });
+
+                res.json({ clientSecret: paymentIntent.client_secret })
+            }
+            catch(error){
+                res.status(500).json({ error: error.message });
+            }
+        })
 
         app.delete('/parcels/:id', async(req, res)=>{
             try{
