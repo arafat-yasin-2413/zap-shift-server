@@ -30,6 +30,7 @@ async function run() {
 
         const db = client.db("parcelDB");
         const parcelCollection = db.collection("parcels");
+        const paymentsCollection = db.collection("payments");
 
         // parcel related APIs
         app.get("/parcels", async (req, res) => {
@@ -82,6 +83,22 @@ async function run() {
                 res.status(500).send({ message: "Failed to create parcel" });
             }
         });
+
+        app.get('/payments', async (req, res) => {
+            try {
+                const userEmail = req.query.email;
+
+                const query = userEmail ? { email: userEmail } : {};
+                const options = { sort: { paid_at: -1 } }; // Latest first
+
+                const payments = await paymentsCollection.find(query, options).toArray();
+                res.send(payments);
+            } catch (error) {
+                console.error('Error fetching payment history:', error);
+                res.status(500).send({ message: 'Failed to get payments' });
+            }
+        });
+
 
         // POST: Record payment and update parcel status
         app.post("/payments", async (req, res) => {
@@ -136,7 +153,7 @@ async function run() {
         });
 
 
-        
+
 
         app.post("/create-payment-intent", async (req, res) => {
             const amountInCents = req.body.amountInCents;
