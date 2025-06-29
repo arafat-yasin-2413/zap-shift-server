@@ -83,18 +83,42 @@ async function run() {
             }
         });
 
-        app.get('/payments', async (req, res) => {
+        app.post("/tracking", async (req, res) => {
+            const {
+                tracking_id,
+                parcel_id,
+                status,
+                message,
+                updated_by = "",
+            } = req.body;
+
+            const log = {
+                tracking_id,
+                parcel_id: parcel_id ? new ObjectId(parcel_id) : undefined,
+                status,
+                message,
+                time: new Date(),
+                updated_by,
+            };
+
+            const result = await trackingCollection.insertOne(log);
+            res.send({ success: true, insertedId: result.insertedId });
+        });
+
+        app.get("/payments", async (req, res) => {
             try {
                 const userEmail = req.query.email;
 
                 const query = userEmail ? { email: userEmail } : {};
                 const options = { sort: { paid_at: -1 } }; // Latest first
 
-                const payments = await paymentsCollection.find(query, options).toArray();
+                const payments = await paymentsCollection
+                    .find(query, options)
+                    .toArray();
                 res.send(payments);
             } catch (error) {
-                console.error('Error fetching payment history:', error);
-                res.status(500).send({ message: 'Failed to get payments' });
+                console.error("Error fetching payment history:", error);
+                res.status(500).send({ message: "Failed to get payments" });
             }
         });
 
@@ -149,9 +173,6 @@ async function run() {
                 res.status(500).send({ message: "Failed to record payment" });
             }
         });
-
-
-
 
         app.post("/create-payment-intent", async (req, res) => {
             const amountInCents = req.body.amountInCents;
