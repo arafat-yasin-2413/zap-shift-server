@@ -75,7 +75,6 @@ async function run() {
         app.post("/parcels", async (req, res) => {
             try {
                 const newParcel = req.body;
-
                 const result = await parcelCollection.insertOne(newParcel);
                 res.status(201).send(result);
             } catch (error) {
@@ -98,7 +97,6 @@ async function run() {
                 res.status(500).send({ message: 'Failed to get payments' });
             }
         });
-
 
         // POST: Record payment and update parcel status
         app.post("/payments", async (req, res) => {
