@@ -41,6 +41,7 @@ async function run() {
             const userExist = await usersCollection.findOne({ email });
 
             if(userExist) {
+                // TODO: update last log in info
                 return res.status(200).send({message: 'User already exists' , inserted: false});
             }
 
@@ -51,10 +52,21 @@ async function run() {
 
 
 
+
         // parcel related APIs
+        // app.get('/parcels', async(req, res)=>{
+        //     const parcels = await parcelCollection.find().toArray();
+        //     res.send(parcels);
+        // })
+
+
+
+
         app.get("/parcels", async (req, res) => {
             try {
                 const userEmail = req.query.email;
+
+                // console.log(req.headers);
 
                 const query = userEmail ? { created_by: userEmail } : {};
                 const options = {
