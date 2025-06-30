@@ -1,6 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const admin = require("firebase-admin");
 
 dotenv.config();
 const stripe = require("stripe")(process.env.PAYMENT_GATEWAY_KEY);
@@ -11,7 +13,15 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+
+
+var serviceAccount = require("./firebase-admin-key.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.j4wv0oh.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -33,34 +43,48 @@ async function run() {
         const parcelCollection = db.collection("parcels");
         const paymentsCollection = db.collection("payments");
 
+        // custom middleWare
+        const verifyFBToken = async (req, res, next) => {
+            // console.log('header in middleware : ', req.headers);
+            const authHeader = req.headers.authorization;
+            if (!authHeader) {
+                return res.status(401).send({ message: "unauthorized access" });
+            }
+
+            const token = authHeader.split(" ")[1];
+            if (!token) {
+                return res.status(401).send({ message: "unauthorized access" });
+            }
+
+            // verify the token
+
+
+            next();
+        };
 
         // user related APIs
-        app.post('/users', async(req, res)=>{
+        app.post("/users", async (req, res) => {
             const email = req.body.email;
 
             const userExist = await usersCollection.findOne({ email });
 
-            if(userExist) {
+            if (userExist) {
                 // TODO: update last log in info
-                return res.status(200).send({message: 'User already exists' , inserted: false});
+                return res
+                    .status(200)
+                    .send({ message: "User already exists", inserted: false });
             }
 
             const user = req.body;
             const result = await usersCollection.insertOne(user);
             res.send(result);
-        })
-
-
-
+        });
 
         // parcel related APIs
         // app.get('/parcels', async(req, res)=>{
         //     const parcels = await parcelCollection.find().toArray();
         //     res.send(parcels);
         // })
-
-
-
 
         app.get("/parcels", async (req, res) => {
             try {
@@ -136,7 +160,8 @@ async function run() {
             res.send({ success: true, insertedId: result.insertedId });
         });
 
-        app.get("/payments", async (req, res) => {
+        app.get("/payments", verifyFBToken, async (req, res) => {
+            // console.log('headers in payment :', req.headers);
             try {
                 const userEmail = req.query.email;
 
