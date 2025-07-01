@@ -391,6 +391,7 @@ async function run() {
             const result = await ridersCollection.insertOne(rider);
             res.send(result);
         });
+        
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
