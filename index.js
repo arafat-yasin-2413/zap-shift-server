@@ -86,6 +86,28 @@ async function run() {
             }
         });
 
+
+        app.get('/users/:email/role', async (req, res) => {
+            try {
+                const email = req.params.email;
+
+                if (!email) {
+                    return res.status(400).send({ message: 'Email is required' });
+                }
+
+                const user = await usersCollection.findOne({ email });
+
+                if (!user) {
+                    return res.status(404).send({ message: 'User not found' });
+                }
+
+                res.send({ role: user.role || 'user' });
+            } catch (error) {
+                console.error('Error getting user role:', error);
+                res.status(500).send({ message: 'Failed to get role' });
+            }
+        });
+
         app.post("/users", async (req, res) => {
             const email = req.body.email;
 
@@ -391,7 +413,7 @@ async function run() {
             const result = await ridersCollection.insertOne(rider);
             res.send(result);
         });
-        
+
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
