@@ -13,14 +13,10 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-
-
-var serviceAccount = require("./firebase-admin-key.json");
-
+const serviceAccount = require("./firebase-admin-key.json");
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+    credential: admin.credential.cert(serviceAccount),
 });
-
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.j4wv0oh.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -57,12 +53,17 @@ async function run() {
             }
 
             // verify the token
-
-
-            next();
+            try {
+                const decoded = await admin.auth().verifyIdToken(token);
+                req.decoded = decoded;
+                next();
+            } catch (error) {
+                return res.status(403).send({ message: "forbidden access" });
+            }
         };
 
-        // user related APIs
+        ///////////////////// USER related APIs //////////////////////////
+
         app.post("/users", async (req, res) => {
             const email = req.body.email;
 
@@ -80,13 +81,14 @@ async function run() {
             res.send(result);
         });
 
-        // parcel related APIs
+        ////////////////////// PARCEL related APIs /////////////////////////
+
         // app.get('/parcels', async(req, res)=>{
         //     const parcels = await parcelCollection.find().toArray();
         //     res.send(parcels);
         // })
 
-        app.get("/parcels", async (req, res) => {
+        app.get("/parcels", verifyFBToken, async (req, res) => {
             try {
                 const userEmail = req.query.email;
 
@@ -160,10 +162,35 @@ async function run() {
             res.send({ success: true, insertedId: result.insertedId });
         });
 
+        app.delete("/parcels/:id", async (req, res) => {
+            try {
+                const id = req.params.id;
+
+                const result = await parcelCollection.deleteOne({
+                    _id: new ObjectId(id),
+                });
+
+                res.send(result);
+            } catch (error) {
+                console.error("Error deleting parcel: ", error);
+                res.status(500).send({ message: "Failed to delete parcel" });
+            }
+        });
+
+
+        ///////////////////// PAYMENT related APIs /////////////////////////
+
         app.get("/payments", verifyFBToken, async (req, res) => {
             // console.log('headers in payment :', req.headers);
             try {
                 const userEmail = req.query.email;
+
+                console.log("decoded in getting payments : ", req.decoded);
+                if (req.decoded.email !== userEmail) {
+                    return res
+                        .status(403)
+                        .send({ message: "forbidden access" });
+                }
 
                 const query = userEmail ? { email: userEmail } : {};
                 const options = { sort: { paid_at: -1 } }; // Latest first
@@ -245,20 +272,7 @@ async function run() {
             }
         });
 
-        app.delete("/parcels/:id", async (req, res) => {
-            try {
-                const id = req.params.id;
-
-                const result = await parcelCollection.deleteOne({
-                    _id: new ObjectId(id),
-                });
-
-                res.send(result);
-            } catch (error) {
-                console.error("Error deleting parcel: ", error);
-                res.status(500).send({ message: "Failed to delete parcel" });
-            }
-        });
+        
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
