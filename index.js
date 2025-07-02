@@ -347,7 +347,7 @@ async function run() {
 
         ////////////////// RIDER related APIs ///////////////////
 
-        app.get("/riders/pending", async (req, res) => {
+        app.get("/riders/pending", verifyFBToken , async (req, res) => {
             try {
                 const pendingRiders = await ridersCollection
                     .find({ status: "pending" })
