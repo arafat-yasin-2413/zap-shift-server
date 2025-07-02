@@ -40,7 +40,7 @@ async function run() {
         const paymentsCollection = db.collection("payments");
         const ridersCollection = db.collection("riders");
 
-        /////////////// CUSTOM MIDDLEWARES //////////////////// 
+        /////////////// CUSTOM MIDDLEWARES ////////////////////
 
         const verifyFBToken = async (req, res, next) => {
             // console.log('header in middleware : ', req.headers);
@@ -64,19 +64,17 @@ async function run() {
             }
         };
 
- 
-        const verifyAdmin = async (req, res, next) =>{
+        const verifyAdmin = async (req, res, next) => {
             const email = req.decoded.email;
 
             const query = { email };
             const user = await usersCollection.findOne(query);
 
-            if(!user || user.role !== 'admin') {
-                return res.status(403).send({ message: 'Forbidden access' })
+            if (!user || user.role !== "admin") {
+                return res.status(403).send({ message: "Forbidden access" });
             }
             next();
-        }
-
+        };
 
         ///////////////////// USER related APIs //////////////////////////
 
@@ -101,25 +99,26 @@ async function run() {
             }
         });
 
-
-        app.get('/users/:email/role', async (req, res) => {
+        app.get("/users/:email/role", async (req, res) => {
             try {
                 const email = req.params.email;
 
                 if (!email) {
-                    return res.status(400).send({ message: 'Email is required' });
+                    return res
+                        .status(400)
+                        .send({ message: "Email is required" });
                 }
 
                 const user = await usersCollection.findOne({ email });
 
                 if (!user) {
-                    return res.status(404).send({ message: 'User not found' });
+                    return res.status(404).send({ message: "User not found" });
                 }
 
-                res.send({ role: user.role || 'user' });
+                res.send({ role: user.role || "user" });
             } catch (error) {
-                console.error('Error getting user role:', error);
-                res.status(500).send({ message: 'Failed to get role' });
+                console.error("Error getting user role:", error);
+                res.status(500).send({ message: "Failed to get role" });
             }
         });
 
@@ -144,7 +143,7 @@ async function run() {
             "/users/:id/role",
             verifyFBToken,
             verifyAdmin,
-            
+
             async (req, res) => {
                 const { id } = req.params;
                 const { role } = req.body;
@@ -181,29 +180,27 @@ async function run() {
         app.get("/parcels", verifyFBToken, async (req, res) => {
             try {
                 // const userEmail = req.query.email;
-                const {email, payment_status, delivery_status} = req.query;
+                const { email, payment_status, delivery_status } = req.query;
                 let query = {};
-                if(email) {
-                    query = { created_by: email }
+                if (email) {
+                    query = { created_by: email };
                 }
 
-
                 // console.log(req.headers);
-                
-                if(payment_status) {
+
+                if (payment_status) {
                     query.payment_status = payment_status;
                 }
 
-                if(delivery_status) {
+                if (delivery_status) {
                     query.delivery_status = delivery_status;
                 }
-
 
                 const options = {
                     sort: { createdAt: -1 },
                 };
-                
-                console.log('parcel er query : ', req.query, query);
+
+                console.log("parcel er query : ", req.query, query);
 
                 const parcels = await parcelCollection
                     .find(query, options)
@@ -266,6 +263,40 @@ async function run() {
 
             const result = await trackingCollection.insertOne(log);
             res.send({ success: true, insertedId: result.insertedId });
+        });
+
+        app.patch("/parcels/:id/assign", async (req, res) => {
+            const parcelId = req.params.id;
+            const { riderId, riderName } = req.body;
+
+            try {
+                // Update parcel
+                await parcelCollection.updateOne(
+                    { _id: new ObjectId(parcelId) },
+                    {
+                        $set: {
+                            delivery_status: "in_transit",
+                            assigned_rider_id: riderId,
+                            assigned_rider_name: riderName,
+                        },
+                    }
+                );
+
+                // Update rider
+                await ridersCollection.updateOne(
+                    { _id: new ObjectId(riderId) },
+                    {
+                        $set: {
+                            work_status: "in_delivery",
+                        },
+                    }
+                );
+
+                res.send({ message: "Rider assigned" });
+            } catch (err) {
+                console.error(err);
+                res.status(500).send({ message: "Failed to assign rider" });
+            }
         });
 
         app.delete("/parcels/:id", async (req, res) => {
@@ -379,26 +410,54 @@ async function run() {
 
         ////////////////// RIDER related APIs ///////////////////
 
-        app.get("/riders/pending", verifyFBToken , verifyAdmin,  async (req, res) => {
+        app.get(
+            "/riders/pending",
+            verifyFBToken,
+            verifyAdmin,
+            async (req, res) => {
+                try {
+                    const pendingRiders = await ridersCollection
+                        .find({ status: "pending" })
+                        .toArray();
+
+                    res.send(pendingRiders);
+                } catch (error) {
+                    console.error("Failed to load pending riders:", error);
+                    res.status(500).send({
+                        message: "Failed to load pending riders",
+                    });
+                }
+            }
+        );
+
+        app.get(
+            "/riders/active",
+            verifyFBToken,
+            verifyAdmin,
+            async (req, res) => {
+                const result = await ridersCollection
+                    .find({ status: "active" })
+                    .toArray();
+                res.send(result);
+            }
+        );
+
+        app.get("/riders/available", async (req, res) => {
+            const { district } = req.query;
+
             try {
-                const pendingRiders = await ridersCollection
-                    .find({ status: "pending" })
+                const riders = await ridersCollection
+                    .find({
+                        district,
+                        // status: { $in: ["approved", "active"] },
+                        // work_status: "available",
+                    })
                     .toArray();
 
-                res.send(pendingRiders);
-            } catch (error) {
-                console.error("Failed to load pending riders:", error);
-                res.status(500).send({
-                    message: "Failed to load pending riders",
-                });
+                res.send(riders);
+            } catch (err) {
+                res.status(500).send({ message: "Failed to load riders" });
             }
-        });
-
-        app.get("/riders/active", verifyFBToken, verifyAdmin, async (req, res) => {
-            const result = await ridersCollection
-                .find({ status: "active" })
-                .toArray();
-            res.send(result);
         });
 
         app.patch("/riders/:id/status", async (req, res) => {
@@ -445,7 +504,6 @@ async function run() {
             const result = await ridersCollection.insertOne(rider);
             res.send(result);
         });
-
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
