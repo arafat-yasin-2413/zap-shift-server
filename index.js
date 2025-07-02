@@ -40,7 +40,8 @@ async function run() {
         const paymentsCollection = db.collection("payments");
         const ridersCollection = db.collection("riders");
 
-        // custom middleWare
+        /////////////// CUSTOM MIDDLEWARES //////////////////// 
+
         const verifyFBToken = async (req, res, next) => {
             // console.log('header in middleware : ', req.headers);
             const authHeader = req.headers.authorization;
@@ -62,6 +63,20 @@ async function run() {
                 return res.status(403).send({ message: "forbidden access" });
             }
         };
+
+ 
+        const verifyAdmin = async (req, res, next) =>{
+            const email = req.decoded.email;
+
+            const query = { email };
+            const user = await usersCollection.findOne(query);
+
+            if(!user || user.role !== 'admin') {
+                return res.status(403).send({ message: 'Forbidden access' })
+            }
+            next();
+        }
+
 
         ///////////////////// USER related APIs //////////////////////////
 
@@ -128,6 +143,7 @@ async function run() {
         app.patch(
             "/users/:id/role",
             verifyFBToken,
+            verifyAdmin,
             
             async (req, res) => {
                 const { id } = req.params;
@@ -347,7 +363,7 @@ async function run() {
 
         ////////////////// RIDER related APIs ///////////////////
 
-        app.get("/riders/pending", verifyFBToken , async (req, res) => {
+        app.get("/riders/pending", verifyFBToken , verifyAdmin,  async (req, res) => {
             try {
                 const pendingRiders = await ridersCollection
                     .find({ status: "pending" })
@@ -362,7 +378,7 @@ async function run() {
             }
         });
 
-        app.get("/riders/active", async (req, res) => {
+        app.get("/riders/active", verifyFBToken, verifyAdmin, async (req, res) => {
             const result = await ridersCollection
                 .find({ status: "active" })
                 .toArray();
