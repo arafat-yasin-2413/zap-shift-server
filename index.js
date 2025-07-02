@@ -180,14 +180,30 @@ async function run() {
 
         app.get("/parcels", verifyFBToken, async (req, res) => {
             try {
-                const userEmail = req.query.email;
+                // const userEmail = req.query.email;
+                const {email, payment_status, delivery_status} = req.query;
+                let query = {};
+                if(email) {
+                    query = { created_by: email }
+                }
+
 
                 // console.log(req.headers);
+                
+                if(payment_status) {
+                    query.payment_status = payment_status;
+                }
 
-                const query = userEmail ? { created_by: userEmail } : {};
+                if(delivery_status) {
+                    query.delivery_status = delivery_status;
+                }
+
+
                 const options = {
                     sort: { createdAt: -1 },
                 };
+                
+                console.log('parcel er query : ', req.query, query);
 
                 const parcels = await parcelCollection
                     .find(query, options)
