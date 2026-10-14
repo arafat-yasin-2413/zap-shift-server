@@ -1,3 +1,4 @@
 node_modules
 firebase-admin-key.json
 config.bat
+.vscode
