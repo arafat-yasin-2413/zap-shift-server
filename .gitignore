@@ -2,3 +2,13 @@ node_modules
 firebase-admin-key.json
 config.bat
 api.js
+
+# Environment variables & secrets (added by GitHub Guardian)
+.env
+.env.*
+*.env
+!.env.example
+!.env.sample
+.envrc
+.venv/
+venv/
